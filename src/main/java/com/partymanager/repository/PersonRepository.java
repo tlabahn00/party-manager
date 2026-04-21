@@ -1,0 +1,12 @@
+package com.partymanager.repository;
+
+import com.partymanager.model.Person;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface PersonRepository extends JpaRepository<Person, Long> {
+    List<Person> findByVornameContainingIgnoreCaseOrNachnameContainingIgnoreCase(String vorname, String nachname);
+}

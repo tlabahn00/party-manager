@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Manager – Kasse</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .search-autocomplete-wrap { position:relative; max-width:520px; }
+        #search-dropdown {
+            display:none; position:absolute; top:calc(100% + 4px); left:0; right:0;
+            background:#fff; border:1.5px solid var(--border); border-radius:var(--radius);
+            box-shadow:var(--shadow-md); z-index:500; overflow:hidden; max-height:320px; overflow-y:auto;
+        }
+        .dropdown-item {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:0.65rem 1rem; cursor:pointer; border-bottom:1px solid var(--border);
+            transition:background 0.1s; outline:none;
+        }
+        .dropdown-item:last-child { border-bottom:none; }
+        .dropdown-item:hover, .dropdown-item:focus { background:var(--primary-light); }
+        .di-left  { display:flex; flex-direction:column; gap:2px; }
+        .di-nr    { font-size:1rem; font-weight:700; color:var(--primary-dark); font-family:monospace; }
+        .di-name  { font-size:0.8rem; color:var(--text-muted); }
+        .di-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+        .di-typ   { font-size:0.72rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; }
+        .di-status{ font-size:0.78rem; font-weight:700; }
+    </style>
+</head>
+<body>
+<div class="pm-layout">
+    <div id="sidebar-container"></div>
+    <main class="pm-main">
+        <div class="pm-page-header">
+            <h1 class="pm-page-title">💰 Kasse</h1>
+        </div>
+
+        <!-- Suche -->
+        <div class="pm-card mb-3" style="padding:1.5rem;">
+            <div class="pm-label">Ticket suchen</div>
+            <div class="search-autocomplete-wrap">
+                <div class="input-group">
+                    <input id="ticket-search" class="pm-input" type="text"
+                           placeholder="Ticketnummer (1, 001) oder Name…" autocomplete="off">
+                    <button class="btn btn-primary" onclick="searchTicket()">Suchen</button>
+                </div>
+                <div id="search-dropdown"></div>
+            </div>
+            <div class="text-small text-muted mt-1">Tippe eine Zahl oder einen Namen – Vorschläge erscheinen automatisch</div>
+        </div>
+
+        <!-- Mehrere Treffer -->
+        <div id="search-results" style="display:none;" class="pm-card mb-3">
+            <div class="pm-card-header">Suchergebnisse</div>
+            <table class="pm-table">
+                <thead><tr><th>Nr.</th><th>Person</th><th>Typ</th><th>Preis</th><th>Status</th><th></th></tr></thead>
+                <tbody id="results-body"></tbody>
+            </table>
+        </div>
+
+        <!-- Ticket Details -->
+        <div id="ticket-box" style="display:none;">
+            <div class="columns">
+                <div class="col-6">
+                    <div class="pm-card" style="padding:1.5rem;">
+                        <div class="flex-between mb-2">
+                            <span style="font-weight:700;color:var(--primary-dark);">🎟️ Ticket-Details</span>
+                            <button class="btn btn-light btn-sm" onclick="resetKasse()">✕</button>
+                        </div>
+
+                        <!-- Hinweis: was passiert -->
+                        <div id="kasse-hinweis" style="display:none;" class="mb-2"></div>
+
+                        <div class="kasse-ticket-info">
+                            <table>
+                                <tr><th>Ticket-Nr.</th><td id="d-nr"></td></tr>
+                                <tr><th>Typ</th>       <td id="d-typ"></td></tr>
+                                <tr><th>Person</th>    <td id="d-person"></td></tr>
+                                <tr><th>Preis</th>     <td id="d-preis"></td></tr>
+                                <tr><th>Status</th>    <td id="d-status"></td></tr>
+                            </table>
+                        </div>
+
+                        <!-- Verzehr (nur bei Reservierungen) -->
+                        <div id="verzehr-section" style="display:none;" class="mb-2">
+                            <label class="verzehr-toggle">
+                                <input type="checkbox" id="kasse-verzehr" onchange="updateGesamt()">
+                                🍽️ Verzehrgebühr hinzufügen
+                                <span id="verzehr-preis-label" style="margin-left:auto;font-weight:700;"></span>
+                            </label>
+                        </div>
+
+                        <!-- Zahlungsart (nur bei Reservierungen) -->
+                        <div id="zahlungsart-wrap" class="pm-field" style="display:none;">
+                            <label class="pm-label">Zahlungsart</label>
+                            <select id="zahlungsart-select" class="pm-select" style="max-width:200px;">
+                                <option value="BAR">💵 Bar</option>
+                                <option value="KARTE">💳 Karte</option>
+                                <option value="PAYPAL">🅿️ PayPal</option>
+                                <option value="UEBERWEISUNG">🏦 Überweisung</option>
+                            </select>
+                        </div>
+
+                        <!-- Gesamtbetrag (nur bei Reservierungen) -->
+                        <div id="gesamt-wrap" class="kasse-total" style="display:none;">
+                            <span>Zu kassieren</span>
+                            <span class="total-amount" id="gesamt-betrag">0,00 €</span>
+                        </div>
+
+                        <button id="pay-btn" class="btn btn-success btn-full btn-lg mt-2" onclick="kassieren()">
+                            💵 Kassieren & Einchecken
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status-Meldungen -->
+        <div id="already-checked" style="display:none;" class="pm-alert pm-alert-info">
+            ✓ Diese Person wurde bereits eingecheckt.
+        </div>
+        <div id="is-storniert" style="display:none;" class="pm-alert pm-alert-error">
+            ✕ Dieses Ticket wurde storniert.
+        </div>
+        <div id="success-box" style="display:none;" class="pm-alert pm-alert-success">
+            <div>
+                <strong>✓ Ticket <span id="success-nr"></span> abgeschlossen!</strong><br>
+                <span id="success-msg"></span>
+                <button class="btn btn-light btn-sm mt-1" onclick="resetKasse()" style="margin-left:1rem;">
+                    Nächstes Ticket
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+<div id="pm-toast"></div>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/kasse.js"></script>
+</body>
+</html>

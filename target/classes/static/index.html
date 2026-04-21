@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party Manager – Anmelden</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="pm-login-wrap">
+    <div class="pm-login-card">
+        <div class="pm-login-logo">🎉</div>
+        <div class="pm-login-title">Party Manager</div>
+        <div class="pm-login-sub">Bitte melde dich an</div>
+
+        <div id="err" class="pm-alert pm-alert-error" style="display:none;"></div>
+
+        <div class="pm-field">
+            <label class="pm-label">Benutzername</label>
+            <input id="usr" class="pm-input" type="text" placeholder="admin" autocomplete="username">
+        </div>
+        <div class="pm-field">
+            <label class="pm-label">Passwort</label>
+            <input id="pwd" class="pm-input" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="pm-field mt-2">
+            <button id="btn" class="btn btn-primary btn-full btn-lg" onclick="doLogin()">Anmelden</button>
+        </div>
+    </div>
+</div>
+<script src="/js/auth.js"></script>
+<script>
+if (isLoggedIn()) window.location.href = '/pages/uebersicht.html';
+
+async function doLogin() {
+    const usr = document.getElementById('usr').value.trim();
+    const pwd = document.getElementById('pwd').value;
+    const btn = document.getElementById('btn');
+    const err = document.getElementById('err');
+    if (!usr || !pwd) { showErr('Bitte alle Felder ausfüllen.'); return; }
+    btn.textContent = 'Anmelden…'; btn.disabled = true;
+    err.style.display = 'none';
+    try {
+        const res  = await fetch('/api/auth/login', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ username: usr, password: pwd })
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+            setToken(data.token);
+            window.location.href = '/pages/uebersicht.html';
+        } else {
+            showErr(data.error || 'Anmeldung fehlgeschlagen.');
+        }
+    } catch(e) {
+        showErr('Verbindungsfehler – ist der Server gestartet?');
+    } finally {
+        btn.textContent = 'Anmelden'; btn.disabled = false;
+    }
+}
+function showErr(msg) {
+    const e = document.getElementById('err');
+    e.textContent = msg; e.style.display = 'flex';
+}
+document.getElementById('pwd').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party Manager – Tickets</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="pm-layout">
+    <div id="sidebar-container"></div>
+    <main class="pm-main">
+        <div class="pm-page-header">
+            <h1 class="pm-page-title">🎟️ Tickets</h1>
+            <a href="/pages/ticket-erstellen.html" class="btn btn-primary">➕ Neues Ticket</a>
+        </div>
+
+        <div class="pm-card" style="padding:1.25rem 1.5rem 1rem;" >
+            <div class="flex gap-2" style="flex-wrap:wrap;">
+                <div style="flex:1;min-width:220px;">
+                    <input id="search-input" class="pm-input" type="text"
+                        placeholder="Suche nach Ticketnummer oder Person…">
+                </div>
+                <div>
+                    <select id="status-filter" class="pm-select" style="width:180px;">
+                        <option value="">Alle Status</option>
+                        <option value="OFFEN">Offen</option>
+                        <option value="BEZAHLT">Bezahlt</option>
+                        <option value="STORNIERT">Storniert</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="pm-card">
+            <table class="pm-table">
+                <thead><tr>
+                    <th>Ticket-Nr.</th><th>Person</th><th>Typ</th>
+                    <th>Preis</th><th>Status</th><th>Eingecheckt</th><th>Verzehr</th><th>Aktionen</th>
+                </tr></thead>
+                <tbody id="tickets-body">
+                    <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Lade…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+<div id="pm-toast"></div>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/tickets.js"></script>
+</body>
+</html>

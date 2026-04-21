@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party Manager – Übersicht</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="pm-layout">
+    <div id="sidebar-container"></div>
+    <main class="pm-main">
+        <div class="pm-page-header">
+            <h1 class="pm-page-title">📊 Übersicht</h1>
+        </div>
+
+        <!-- Kapazitäts-Fortschrittsbalken -->
+        <div class="pm-capacity-bar mb-3" id="capacity-wrap">
+            <div class="cap-label">
+                <span>Auslastung</span>
+                <span id="cap-text">– / –</span>
+            </div>
+            <div class="bar-outer"><div class="bar-inner" id="cap-bar" style="width:0%"></div></div>
+            <div class="text-small text-muted mt-1" id="cap-sub"></div>
+        </div>
+
+        <!-- Kennzahlen -->
+        <div class="pm-stats-grid" id="stats-grid">
+            <div class="pm-stat-card">
+                <div class="sc-label">Tickets gesamt</div>
+                <div class="sc-value" id="s-gesamt">–</div>
+            </div>
+            <div class="pm-stat-card success">
+                <div class="sc-label">Bezahlt</div>
+                <div class="sc-value" id="s-bezahlt">–</div>
+            </div>
+            <div class="pm-stat-card accent">
+                <div class="sc-label">Offen</div>
+                <div class="sc-value" id="s-offen">–</div>
+            </div>
+            <div class="pm-stat-card danger">
+                <div class="sc-label">Storniert</div>
+                <div class="sc-value" id="s-storniert">–</div>
+            </div>
+            <div class="pm-stat-card">
+                <div class="sc-label">Einnahmen</div>
+                <div class="sc-value" id="s-einnahmen" style="font-size:1.3rem;">–</div>
+            </div>
+            <div class="pm-stat-card success">
+                <div class="sc-label">Freie Plätze</div>
+                <div class="sc-value" id="s-frei">–</div>
+            </div>
+        </div>
+
+        <!-- Letzte Kassenvorgänge -->
+        <div class="pm-card">
+            <div class="pm-card-header">🧾 Letzte 10 Kassenvorgänge</div>
+            <table class="pm-table">
+                <thead><tr>
+                    <th>Zeitpunkt</th><th>Ticket-Nr.</th>
+                    <th>Betrag</th><th>Gesamt</th><th>Zahlungsart</th>
+                </tr></thead>
+                <tbody id="vorgaenge-body">
+                    <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Lade…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+<div id="pm-toast"></div>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/uebersicht.js"></script>
+</body>
+</html>

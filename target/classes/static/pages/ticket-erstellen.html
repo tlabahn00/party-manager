@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Manager – Ticket erstellen</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="pm-layout">
+    <div id="sidebar-container"></div>
+    <main class="pm-main">
+        <div class="pm-page-header">
+            <h1 class="pm-page-title">➕ Ticket erstellen</h1>
+        </div>
+
+        <div class="columns">
+            <div class="col-6">
+                <div class="pm-card" style="padding:1.75rem;">
+
+                    <div class="pm-field">
+                        <label class="pm-label">Ticket-Typ *</label>
+                        <select id="ticket-typ" class="pm-select" onchange="updatePreis()">
+                            <option value="STANDARD">🎟️ Standard</option>
+                            <option value="VIP">⭐ VIP</option>
+                            <option value="ERMAESSIGT">🎓 Ermäßigt</option>
+                        </select>
+                    </div>
+
+                    <div class="pm-field">
+                        <label class="pm-label">Ticketpreis</label>
+                        <input id="preis-display" class="pm-input" type="text" readonly
+                               style="background:#f5faf7;cursor:default;font-weight:700;color:var(--primary-dark);">
+                    </div>
+
+                    <div class="pm-field">
+                        <label class="pm-label">Person zuweisen (optional)</label>
+                        <select id="person-select" class="pm-select">
+                            <option value="">– Keine Person –</option>
+                        </select>
+                    </div>
+
+                    <!-- Zahlungsstatus -->
+                    <div class="pm-field">
+                        <label class="pm-label">Zahlungsstatus *</label>
+                        <select id="zahlungsstatus" class="pm-select">
+                            <option value="RESERVIERT">⏳ Reserviert – Zahlung an der Kasse</option>
+                            <option value="BEZAHLT">✓ Bereits bezahlt</option>
+                        </select>
+                        <div class="text-small text-muted mt-1">
+                            Reserviert = Person zahlt beim Einlass an der Kasse
+                        </div>
+                    </div>
+
+                    <!-- Zahlungsart (nur wenn BEZAHLT) -->
+                    <div id="zahlungsart-wrap" class="pm-field" style="display:none;">
+                        <label class="pm-label">Zahlungsart *</label>
+                        <select id="zahlungsart-select" class="pm-select">
+                            <option value="BAR">💵 Bar</option>
+                            <option value="KARTE">💳 Karte</option>
+                            <option value="PAYPAL">🅿️ PayPal</option>
+                            <option value="UEBERWEISUNG">🏦 Überweisung</option>
+                        </select>
+                    </div>
+
+                    <!-- Verzehr -->
+                    <div id="verzehr-field" style="display:none;" class="pm-field">
+                        <label class="verzehr-toggle">
+                            <input type="checkbox" id="verzehr-checkbox" onchange="updatePreis()">
+                            🍽️ Verzehrgebühr hinzufügen
+                            <span id="verzehr-label" style="margin-left:auto;font-weight:700;"></span>
+                        </label>
+                    </div>
+
+                    <div class="kasse-total mt-2">
+                        <span>Gesamtpreis</span>
+                        <span class="total-amount" id="gesamt-preis">0,00 €</span>
+                    </div>
+
+                    <div class="pm-field mt-2">
+                        <button id="create-btn" class="btn btn-primary btn-full btn-lg" onclick="createTicket()">
+                            🎟️ Ticket erstellen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Erfolg -->
+                <div id="success-box" class="pm-alert pm-alert-success mt-2"
+                     style="display:none;flex-direction:column;gap:0.75rem;">
+                    <div>
+                        <strong>✓ Ticket erstellt!</strong><br>
+                        Nummer: <code id="new-ticket-nr" style="font-size:1.1rem;font-weight:700;"></code><br>
+                        <span class="text-small" id="new-ticket-status"></span>
+                    </div>
+                    <div class="flex gap-1">
+                        <button id="btn-zur-kasse" class="btn btn-success btn-sm" onclick="goToKasse()">
+                            💰 Direkt zur Kasse
+                        </button>
+                        <button class="btn btn-light btn-sm" onclick="resetForm()">➕ Weiteres Ticket</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<div id="pm-toast"></div>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/ticket-erstellen.js"></script>
+</body>
+</html>

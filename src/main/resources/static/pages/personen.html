@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party Manager – Personen</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="pm-layout">
+    <div id="sidebar-container"></div>
+    <main class="pm-main">
+        <div class="pm-page-header">
+            <h1 class="pm-page-title">👥 Personen</h1>
+            <button class="btn btn-primary" onclick="openModal(null)">➕ Neue Person</button>
+        </div>
+        <div class="pm-card" style="padding:1.25rem 1.5rem 1rem;">
+            <input id="search-input" class="pm-input" style="max-width:360px;"
+                type="text" placeholder="Name suchen…">
+        </div>
+        <div class="pm-card">
+            <table class="pm-table">
+                <thead><tr>
+                    <th>Vorname</th><th>Nachname</th><th>E-Mail</th>
+                    <th>Telefon</th><th>Tickets</th><th>Aktionen</th>
+                </tr></thead>
+                <tbody id="personen-body">
+                    <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Lade…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<!-- Modal -->
+<div id="person-modal" class="pm-modal-overlay">
+    <div class="pm-modal">
+        <div class="pm-modal-header">
+            <span id="modal-title">Neue Person</span>
+            <button class="pm-modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="pm-modal-body">
+            <input type="hidden" id="person-id">
+            <div class="columns">
+                <div class="col-6">
+                    <div class="pm-field">
+                        <label class="pm-label">Vorname *</label>
+                        <input id="p-vorname" class="pm-input" type="text" placeholder="Max">
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="pm-field">
+                        <label class="pm-label">Nachname *</label>
+                        <input id="p-nachname" class="pm-input" type="text" placeholder="Mustermann">
+                    </div>
+                </div>
+            </div>
+            <div class="pm-field">
+                <label class="pm-label">E-Mail</label>
+                <input id="p-email" class="pm-input" type="email" placeholder="max@beispiel.de">
+            </div>
+            <div class="pm-field">
+                <label class="pm-label">Telefon</label>
+                <input id="p-telefon" class="pm-input" type="text" placeholder="+49 123 456789">
+            </div>
+            <div class="pm-field">
+                <label class="pm-label">Notiz</label>
+                <textarea id="p-notiz" class="pm-textarea" rows="3"></textarea>
+            </div>
+        </div>
+        <div class="pm-modal-footer">
+            <button class="btn btn-primary" onclick="savePerson()">Speichern</button>
+            <button class="btn btn-light" onclick="closeModal()">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<div id="pm-toast"></div>
+<script src="/js/auth.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/personen.js"></script>
+</body>
+</html>
