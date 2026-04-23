@@ -1,52 +1,64 @@
-let currentTicket = null;
 let cfg = null;
-let allTickets = [];
+let allTickets   = [];   // alle Tickets aus der DB
+let allPersonen  = [];   // alle Personen
+let warenkorb    = [];   // { ticket, verzehr }
 
 document.addEventListener('DOMContentLoaded', async () => {
     initPage('Kasse');
     try {
-        [cfg, allTickets] = await Promise.all([loadConfig(), apiFetch('/api/tickets')]);
+        [cfg, allTickets, allPersonen] = await Promise.all([
+            loadConfig(),
+            apiFetch('/api/tickets'),
+            apiFetch('/api/personen')
+        ]);
         if (cfg.verzehrEnabled) {
-            document.getElementById('verzehr-preis-label').textContent = formatEuro(cfg.verzehrPreis);
+            document.getElementById('verzehr-preis-label') &&
+            (document.getElementById('verzehr-preis-label').textContent = formatEuro(cfg.verzehrPreis));
         }
     } catch(e) { showToast('Fehler beim Laden: ' + e.message, 'error'); }
 
+    setupTicketAutocomplete();
+    setupPersonAutocomplete();
+
+    // URL-Parameter ?ticket=001 → direkt hinzufügen
     const p = new URLSearchParams(window.location.search);
     if (p.get('ticket')) {
-        document.getElementById('ticket-search').value = p.get('ticket');
-        await searchTicket();
+        const nr  = p.get('ticket');
+        const t   = findTicketByNr(nr);
+        if (t) addToWarenkorb(t);
     }
-    setupAutocomplete();
 });
 
-function setupAutocomplete() {
+/* ─── Ticket-Autocomplete ─── */
+function setupTicketAutocomplete() {
     const input    = document.getElementById('ticket-search');
     const dropdown = document.getElementById('search-dropdown');
 
     input.addEventListener('input', () => {
         const raw = input.value.trim();
-        if (!raw) { hideDropdown(); return; }
-        const q = raw.toLowerCase();
-        const matches = allTickets.filter(t => {
-            const numMatch = t.ticketNummer.includes(raw) || t.ticketNummer === raw.padStart(3,'0');
-            const name = t.person ? (t.person.vorname+' '+t.person.nachname).toLowerCase() : '';
-            return numMatch || name.includes(q);
-        }).slice(0, 8);
+        if (!raw) { hideDd(dropdown); return; }
+        const q   = raw.toLowerCase();
+        const hits = allTickets.filter(t => {
+            if (isInWarenkorb(t.id)) return false;
+            if (t.eingecheckt || t.zahlungsstatus === 'STORNIERT') return false;
+            return t.ticketNummer.includes(raw) ||
+                t.ticketNummer === raw.padStart(3,'0') ||
+                (t.person && (t.person.vorname+' '+t.person.nachname).toLowerCase().includes(q));
+        }).slice(0,8);
 
-        if (!matches.length) { hideDropdown(); return; }
-
-        dropdown.innerHTML = matches.map(t => {
+        if (!hits.length) { hideDd(dropdown); return; }
+        dropdown.innerHTML = hits.map(t => {
             const person = t.person ? t.person.vorname+' '+t.person.nachname : '–';
-            const sc = { RESERVIERT:'#9a6800', BEZAHLT:'#1a7a44', STORNIERT:'#a02020' }[t.zahlungsstatus]||'#555';
-            const icon = t.eingecheckt ? '✓ ' : (t.zahlungsstatus==='RESERVIERT' ? '💰 ' : '');
-            return `<div class="dropdown-item" onclick="selectSuggestion('${t.ticketNummer}')">
+            return `<div class="dropdown-item" tabindex="0"
+                        onclick="selectTicketSuggestion('${t.ticketNummer}')"
+                        onkeydown="ddKey(event,'${t.ticketNummer}')">
                 <div class="di-left">
                     <span class="di-nr">${t.ticketNummer}</span>
                     <span class="di-name">${person}</span>
                 </div>
                 <div class="di-right">
                     <span class="di-typ">${t.ticketTyp}</span>
-                    <span class="di-status" style="color:${sc};">${icon}${t.zahlungsstatus}${t.eingecheckt?' · Eingecheckt':''}</span>
+                    <span class="di-status" style="color:${statusColor(t)};">${t.zahlungsstatus}</span>
                 </div>
             </div>`;
         }).join('');
@@ -54,208 +66,303 @@ function setupAutocomplete() {
     });
 
     input.addEventListener('keydown', e => {
-        if (e.key==='Enter')     { hideDropdown(); searchTicket(); }
-        if (e.key==='Escape')    { hideDropdown(); }
-        if (e.key==='ArrowDown') { focusItem(0); e.preventDefault(); }
-    });
-    dropdown.addEventListener('keydown', e => {
-        const items = [...dropdown.querySelectorAll('.dropdown-item')];
-        const idx   = items.indexOf(document.activeElement);
-        if (e.key==='ArrowDown')  { focusItem(idx+1); e.preventDefault(); }
-        if (e.key==='ArrowUp')    { idx>0 ? focusItem(idx-1) : input.focus(); e.preventDefault(); }
-        if (e.key==='Escape')     { hideDropdown(); input.focus(); }
+        if (e.key === 'Enter')     { hideDd(dropdown); addBySearch(); }
+        if (e.key === 'Escape')    { hideDd(dropdown); }
+        if (e.key === 'ArrowDown') { focusFirst(dropdown); e.preventDefault(); }
     });
     document.addEventListener('click', e => {
-        if (!e.target.closest('.search-autocomplete-wrap')) hideDropdown();
+        if (!e.target.closest('.search-autocomplete-wrap')) hideDd(dropdown);
     });
 }
 
-function focusItem(idx) {
-    const items = document.querySelectorAll('#search-dropdown .dropdown-item');
-    if (items[idx]) { items[idx].setAttribute('tabindex','0'); items[idx].focus(); }
+function selectTicketSuggestion(nr) {
+    document.getElementById('ticket-search').value = nr;
+    hideDd(document.getElementById('search-dropdown'));
+    addBySearch();
 }
-function hideDropdown() { document.getElementById('search-dropdown').style.display = 'none'; }
-function selectSuggestion(nr) { document.getElementById('ticket-search').value = nr; hideDropdown(); searchTicket(); }
 
-async function searchTicket() {
+function addBySearch() {
     const raw = document.getElementById('ticket-search').value.trim();
     if (!raw) return;
-    hideAll();
+    const t = findTicketByNr(raw);
+    if (!t) { showToast('Ticket nicht gefunden: ' + raw, 'warning'); return; }
+    if (t.eingecheckt)                    { showToast('Bereits eingecheckt.', 'warning'); return; }
+    if (t.zahlungsstatus === 'STORNIERT') { showToast('Ticket ist storniert.', 'warning'); return; }
+    if (isInWarenkorb(t.id))              { showToast('Ticket bereits im Warenkorb.', 'warning'); return; }
+    addToWarenkorb(t);
+    document.getElementById('ticket-search').value = '';
+}
 
+function findTicketByNr(raw) {
     const padded = raw.padStart(3,'0');
-    let ticket = allTickets.find(t =>
-        t.ticketNummer === raw || t.ticketNummer === padded ||
+    return allTickets.find(t =>
+        t.ticketNummer === raw ||
+        t.ticketNummer === padded ||
         t.ticketNummer === String(parseInt(raw,10)||0).padStart(3,'0')
+    ) || null;
+}
+
+/* ─── Personen-Autocomplete ─── */
+function setupPersonAutocomplete() {
+    const input    = document.getElementById('person-search');
+    const dropdown = document.getElementById('person-dropdown');
+
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        if (q.length < 1) { hideDd(dropdown); return; }
+        const hits = allPersonen.filter(p =>
+            (p.vorname+' '+p.nachname).toLowerCase().includes(q)
+        ).slice(0,8);
+
+        if (!hits.length) { hideDd(dropdown); return; }
+        dropdown.innerHTML = hits.map(p => {
+            const tickets = allTickets.filter(t =>
+                t.person?.id === p.id && !t.eingecheckt && t.zahlungsstatus !== 'STORNIERT'
+            );
+            const label = tickets.length > 0
+                ? `${tickets.length} offene(s) Ticket(s)`
+                : 'Keine offenen Tickets';
+            return `<div class="dropdown-item" tabindex="0"
+                        onclick="selectPerson(${p.id})"
+                        onkeydown="personDdKey(event,${p.id})">
+                <div class="di-left">
+                    <span class="di-nr" style="font-size:0.9rem;">${p.vorname} ${p.nachname}</span>
+                    <span class="di-name">${label}</span>
+                </div>
+            </div>`;
+        }).join('');
+        dropdown.style.display = 'block';
+    });
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') hideDd(dropdown);
+        if (e.key === 'ArrowDown') { focusFirst(dropdown); e.preventDefault(); }
+    });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.search-autocomplete-wrap')) hideDd(dropdown);
+    });
+}
+
+function selectPerson(personId) {
+    hideDd(document.getElementById('person-dropdown'));
+    const person  = allPersonen.find(p => p.id === personId);
+    if (!person) return;
+
+    document.getElementById('person-search').value =
+        person.vorname + ' ' + person.nachname;
+
+    // Alle offenen, nicht-eingecheckten Tickets dieser Person laden
+    const tickets = allTickets.filter(t =>
+        t.person?.id === personId &&
+        !t.eingecheckt &&
+        t.zahlungsstatus !== 'STORNIERT'
     );
 
-    if (!ticket) {
-        const q = raw.toLowerCase();
-        const hits = allTickets.filter(t => {
-            const name = t.person ? (t.person.vorname+' '+t.person.nachname).toLowerCase() : '';
-            return name.includes(q);
-        });
-        if (hits.length === 1)    { ticket = hits[0]; }
-        else if (hits.length > 1) { showResults(hits); return; }
-        else { showToast('Kein Ticket gefunden für: '+raw, 'warning'); return; }
-    }
-    showTicket(ticket);
-}
-
-function showResults(tickets) {
-    document.getElementById('results-body').innerHTML = tickets.map(t => `<tr>
-        <td><code>${t.ticketNummer}</code></td>
-        <td>${t.person ? t.person.vorname+' '+t.person.nachname : '–'}</td>
-        <td>${typBadge(t.ticketTyp)}</td>
-        <td>${formatEuro(t.preis)}</td>
-        <td>${zahlungsstatusBadge(t)}</td>
-        <td><button class="btn btn-primary btn-sm" onclick="selectById(${t.id})">Auswählen</button></td>
-    </tr>`).join('');
-    document.getElementById('search-results').style.display = 'block';
-}
-
-function selectById(id) {
-    const t = allTickets.find(x => x.id===id);
-    if (t) { document.getElementById('search-results').style.display='none'; showTicket(t); }
-}
-
-function showTicket(ticket) {
-    hideAll();
-    currentTicket = ticket;
-
-    if (ticket.eingecheckt) {
-        document.getElementById('already-checked').style.display = 'flex'; return;
-    }
-    if (ticket.zahlungsstatus === 'STORNIERT') {
-        document.getElementById('is-storniert').style.display = 'flex'; return;
+    if (!tickets.length) {
+        document.getElementById('person-info').textContent =
+            'Keine offenen Tickets für diese Person.';
+        return;
     }
 
-    const istReserviert = ticket.zahlungsstatus === 'RESERVIERT';
+    let added = 0;
+    tickets.forEach(t => {
+        if (!isInWarenkorb(t.id)) { addToWarenkorb(t); added++; }
+    });
 
-    document.getElementById('d-nr').innerHTML       = `<strong>${ticket.ticketNummer}</strong>`;
-    document.getElementById('d-typ').innerHTML      = typBadge(ticket.ticketTyp);
-    document.getElementById('d-person').textContent = ticket.person
-        ? ticket.person.vorname+' '+ticket.person.nachname : '–';
-    document.getElementById('d-preis').textContent  = formatEuro(ticket.preis);
-    document.getElementById('d-status').innerHTML   = zahlungsstatusBadge(ticket);
+    document.getElementById('person-info').textContent =
+        added > 0
+            ? `${added} Ticket(s) von ${person.vorname} ${person.nachname} hinzugefügt.`
+            : 'Alle Tickets bereits im Warenkorb.';
+}
 
-    // Hinweisbox: was passiert beim Abschließen
-    const hinweis = document.getElementById('kasse-hinweis');
-    if (istReserviert) {
-        hinweis.className = 'pm-alert pm-alert-warning';
-        hinweis.innerHTML = '💰 <strong>Reservierung</strong> – Zahlung jetzt an der Kasse entgegennehmen.';
+function clearPersonSearch() {
+    document.getElementById('person-search').value = '';
+    document.getElementById('person-info').textContent = '';
+    hideDd(document.getElementById('person-dropdown'));
+}
+
+/* ─── Warenkorb ─── */
+function isInWarenkorb(id) { return warenkorb.some(w => w.ticket.id === id); }
+
+function addToWarenkorb(ticket) {
+    warenkorb.push({ ticket, verzehr: ticket.verzehr || false });
+    renderWarenkorb();
+}
+
+function removeFromWarenkorb(id) {
+    warenkorb = warenkorb.filter(w => w.ticket.id !== id);
+    renderWarenkorb();
+}
+
+function toggleVerzehr(id) {
+    const item = warenkorb.find(w => w.ticket.id === id);
+    if (item) { item.verzehr = !item.verzehr; renderWarenkorb(); }
+}
+
+function clearWarenkorb() {
+    warenkorb = [];
+    renderWarenkorb();
+}
+
+function renderWarenkorb() {
+    const container = document.getElementById('warenkorb-items');
+    const btn       = document.getElementById('kassieren-btn');
+    const clearBtn  = document.getElementById('clear-btn');
+
+    if (!warenkorb.length) {
+        container.innerHTML = '<div class="warenkorb-empty">Noch keine Tickets hinzugefügt</div>';
+        btn.disabled = true;
+        clearBtn.style.display = 'none';
+        updateSummen();
+        return;
+    }
+
+    btn.disabled = false;
+    clearBtn.style.display = 'inline-flex';
+
+    container.innerHTML = warenkorb.map(({ticket, verzehr}) => {
+        const person = ticket.person
+            ? ticket.person.vorname+' '+ticket.person.nachname : '–';
+        const istReserviert = ticket.zahlungsstatus === 'RESERVIERT';
+        const vp = cfg?.verzehrEnabled && verzehr ? parseFloat(cfg.verzehrPreis) : 0;
+        const itemPreis = parseFloat(ticket.preis) + vp;
+
+        return `<div class="warenkorb-item">
+            <div class="wi-info">
+                <div class="wi-nr">${ticket.ticketNummer}
+                    ${typBadge(ticket.ticketTyp)}
+                    ${istReserviert
+            ? '<span class="badge badge-warning" style="font-size:0.65rem;">Zahlung ausstehend</span>'
+            : '<span class="badge badge-info" style="font-size:0.65rem;">Vorab bezahlt</span>'}
+                </div>
+                <div class="wi-meta">${person}</div>
+                ${cfg?.verzehrEnabled && istReserviert ? `
+                <label class="wi-verzehr" onclick="toggleVerzehr(${ticket.id})">
+                    <input type="checkbox" ${verzehr ? 'checked' : ''}
+                        onclick="event.stopPropagation();toggleVerzehr(${ticket.id})">
+                    🍽️ Verzehr +${formatEuro(cfg.verzehrPreis)}
+                </label>` : ''}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+                <span class="wi-preis">${formatEuro(itemPreis)}</span>
+                <button class="wi-remove" onclick="removeFromWarenkorb(${ticket.id})" title="Entfernen">✕</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    updateSummen();
+}
+
+function updateSummen() {
+    let tickets = 0, verzehr = 0;
+    warenkorb.forEach(({ticket, verzehr: mitV}) => {
+        tickets += parseFloat(ticket.preis);
+        if (mitV && cfg?.verzehrEnabled) verzehr += parseFloat(cfg.verzehrPreis);
+    });
+    document.getElementById('wf-tickets').textContent = formatEuro(tickets);
+    document.getElementById('wf-gesamt').textContent  = formatEuro(tickets + verzehr);
+
+    const vr = document.getElementById('wf-verzehr-row');
+    if (verzehr > 0) {
+        vr.style.display = 'flex';
+        document.getElementById('wf-verzehr').textContent = formatEuro(verzehr);
     } else {
-        hinweis.className = 'pm-alert pm-alert-info';
-        hinweis.innerHTML = '✓ Bereits bezahlt (' + (ticket.zahlungsart||'–') + ') – nur noch Einchecken.';
+        vr.style.display = 'none';
     }
-    hinweis.style.display = 'flex';
-
-    // Verzehr nur bei Reservierungen anzeigen (bei vorausbezahlten wurde es schon beim Erstellen gewählt)
-    const vs = document.getElementById('verzehr-section');
-    if (istReserviert && cfg?.verzehrEnabled) {
-        vs.style.display = 'block';
-        document.getElementById('kasse-verzehr').checked = ticket.verzehr || false;
-    } else {
-        vs.style.display = 'none';
-    }
-
-    // Zahlungsart nur bei Reservierungen
-    document.getElementById('zahlungsart-wrap').style.display = istReserviert ? 'block' : 'none';
-
-    updateGesamt();
-    document.getElementById('ticket-box').style.display = 'block';
-
-    const payBtn = document.getElementById('pay-btn');
-    payBtn.textContent = istReserviert ? '💵 Kassieren & Einchecken' : '✓ Einchecken';
-    payBtn.className   = 'btn btn-full btn-lg ' + (istReserviert ? 'btn-success' : 'btn-primary');
 }
 
-function zahlungsstatusBadge(t) {
-    if (t.eingecheckt)                        return '<span class="badge badge-success">✓ Eingecheckt</span>';
-    if (t.zahlungsstatus==='BEZAHLT')         return '<span class="badge badge-info">Bezahlt · wartet auf Einlass</span>';
-    if (t.zahlungsstatus==='RESERVIERT')      return '<span class="badge badge-warning">Reserviert</span>';
-    if (t.zahlungsstatus==='STORNIERT')       return '<span class="badge badge-danger">Storniert</span>';
-    return '<span class="badge badge-light">'+t.zahlungsstatus+'</span>';
-}
+/* ─── Kassieren ─── */
+async function kassiereWarenkorb() {
+    if (!warenkorb.length) return;
 
-function updateGesamt() {
-    if (!currentTicket) return;
-    const istReserviert = currentTicket.zahlungsstatus === 'RESERVIERT';
-    const mitVerzehr = istReserviert && document.getElementById('kasse-verzehr')?.checked && cfg?.verzehrEnabled;
-    const vp  = mitVerzehr ? parseFloat(cfg.verzehrPreis) : (parseFloat(currentTicket.verzehrPreis)||0);
-    document.getElementById('gesamt-betrag').textContent = formatEuro(parseFloat(currentTicket.preis) + vp);
-    document.getElementById('gesamt-wrap').style.display = istReserviert ? 'flex' : 'none';
-}
-
-async function kassieren() {
-    if (!currentTicket) return;
-    const btn = document.getElementById('pay-btn');
+    const btn = document.getElementById('kassieren-btn');
     btn.classList.add('btn-loading');
-    const origText = btn.textContent;
     btn.textContent = 'Verarbeite…';
 
-    const istReserviert = currentTicket.zahlungsstatus === 'RESERVIERT';
+    const zahlungsart = document.getElementById('zahlungsart-select').value;
+    const errors = [];
+    const success = [];
 
-    try {
-        const result = await apiFetch('/api/kasse/kassieren', {
-            method: 'POST',
-            body: JSON.stringify({
-                ticketId:    currentTicket.id,
-                verzehr:     istReserviert && document.getElementById('kasse-verzehr')?.checked && cfg?.verzehrEnabled,
-                zahlungsart: istReserviert ? document.getElementById('zahlungsart-select').value : currentTicket.zahlungsart
-            })
-        });
-
-        // Lokal aktualisieren
-        const idx = allTickets.findIndex(t => t.id === currentTicket.id);
-        if (idx !== -1) { allTickets[idx].eingecheckt = true; allTickets[idx].zahlungsstatus = 'BEZAHLT'; }
-
-        document.getElementById('success-nr').textContent = currentTicket.ticketNummer;
-        document.getElementById('success-msg').textContent = istReserviert
-            ? '💵 Zahlung kassiert und Person eingecheckt.'
-            : '✓ Person eingecheckt.';
-        hideAll();
-        document.getElementById('success-box').style.display = 'flex';
-        currentTicket = null;
-    } catch(e) {
-        showToast('Fehler: ' + e.message, 'error');
-    } finally {
-        btn.classList.remove('btn-loading');
-        btn.textContent = origText;
+    for (const {ticket, verzehr} of warenkorb) {
+        try {
+            await apiFetch('/api/kasse/kassieren', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ticketId:    ticket.id,
+                    verzehr:     verzehr && cfg?.verzehrEnabled,
+                    zahlungsart: zahlungsart
+                })
+            });
+            // Lokal updaten
+            const idx = allTickets.findIndex(t => t.id === ticket.id);
+            if (idx !== -1) {
+                allTickets[idx].eingecheckt    = true;
+                allTickets[idx].zahlungsstatus = 'BEZAHLT';
+            }
+            success.push(ticket.ticketNummer);
+        } catch(e) {
+            errors.push(`${ticket.ticketNummer}: ${e.message}`);
+        }
     }
+
+    btn.classList.remove('btn-loading');
+    btn.textContent = '✓ Kassieren & Einchecken';
+
+    if (success.length) {
+        const msg = success.length === 1
+            ? `Ticket ${success[0]} kassiert & eingecheckt.`
+            : `${success.length} Tickets kassiert & eingecheckt: ${success.join(', ')}`;
+        document.getElementById('success-msg').textContent = ' ' + msg;
+        document.getElementById('success-box').style.display = 'flex';
+    }
+    if (errors.length) {
+        errors.forEach(e => showToast('Fehler – ' + e, 'error'));
+    }
+
+    // Erfolgreich verarbeitete aus Warenkorb entfernen
+    warenkorb = warenkorb.filter(w => !success.includes(w.ticket.ticketNummer));
+    renderWarenkorb();
 }
 
-function hideAll() {
-    ['ticket-box','already-checked','is-storniert','success-box','search-results']
-        .forEach(id => document.getElementById(id).style.display='none');
-}
-
+/* ─── Abendkasse-Shortcut ─── */
 async function abendkasse() {
-    if (!confirm('Abendkasse: ABENDKASSE-Ticket ohne Person anlegen und direkt zur Kasse?')) return;
     try {
         const ticket = await apiFetch('/api/tickets', {
             method: 'POST',
             body: JSON.stringify({
-                ticketTyp:      'ABENDKASSE',
-                personId:       null,
-                verzehr:        false,
-                zahlungsstatus: 'RESERVIERT',
-                zahlungsart:    null
+                ticketTyp: 'ABENDKASSE', personId: null,
+                verzehr: false, zahlungsstatus: 'RESERVIERT', zahlungsart: null
             })
         });
-        // Neu geladenes Ticket in lokale Liste aufnehmen
         allTickets.push(ticket);
-        // Direkt in der Kasse anzeigen
-        document.getElementById('ticket-search').value = ticket.ticketNummer;
-        showTicket(ticket);
-        showToast('Abendkasse: Ticket ' + ticket.ticketNummer + ' angelegt.', 'success');
-    } catch(e) {
-        showToast('Fehler beim Anlegen: ' + e.message, 'error');
-    }
+        addToWarenkorb(ticket);
+        showToast('Abendkasse-Ticket ' + ticket.ticketNummer + ' angelegt.', 'success');
+    } catch(e) { showToast('Fehler: ' + e.message, 'error'); }
 }
 
+/* ─── Reset ─── */
 function resetKasse() {
-    hideAll();
-    currentTicket = null;
+    document.getElementById('success-box').style.display = 'none';
     document.getElementById('ticket-search').value = '';
-    document.getElementById('ticket-search').focus();
+    clearPersonSearch();
+}
+
+/* ─── Hilfsfunktionen ─── */
+function statusColor(t) {
+    return { RESERVIERT:'#9a6800', BEZAHLT:'#1a7a44', STORNIERT:'#a02020' }[t.zahlungsstatus] || '#555';
+}
+function hideDd(el) { el.style.display = 'none'; }
+function focusFirst(dd) {
+    const first = dd.querySelector('.dropdown-item');
+    if (first) { first.setAttribute('tabindex','0'); first.focus(); }
+}
+function ddKey(e, nr) {
+    if (e.key === 'Enter' || e.key === ' ') selectTicketSuggestion(nr);
+    if (e.key === 'ArrowDown') { e.target.nextElementSibling?.focus(); e.preventDefault(); }
+    if (e.key === 'ArrowUp')   { e.target.previousElementSibling?.focus() || document.getElementById('ticket-search').focus(); e.preventDefault(); }
+}
+function personDdKey(e, id) {
+    if (e.key === 'Enter' || e.key === ' ') selectPerson(id);
+    if (e.key === 'ArrowDown') { e.target.nextElementSibling?.focus(); e.preventDefault(); }
+    if (e.key === 'ArrowUp')   { e.target.previousElementSibling?.focus() || document.getElementById('person-search').focus(); e.preventDefault(); }
 }

@@ -5,25 +5,81 @@
     <title>Party Manager – Kasse</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .search-autocomplete-wrap { position:relative; max-width:520px; }
-        #search-dropdown {
+        /* Autocomplete */
+        .search-autocomplete-wrap { position:relative; }
+        #search-dropdown, #person-dropdown {
             display:none; position:absolute; top:calc(100% + 4px); left:0; right:0;
             background:#fff; border:1.5px solid var(--border); border-radius:var(--radius);
-            box-shadow:var(--shadow-md); z-index:500; overflow:hidden; max-height:320px; overflow-y:auto;
+            box-shadow:var(--shadow-md); z-index:500; overflow:hidden; max-height:280px; overflow-y:auto;
         }
         .dropdown-item {
             display:flex; align-items:center; justify-content:space-between;
-            padding:0.65rem 1rem; cursor:pointer; border-bottom:1px solid var(--border);
+            padding:0.6rem 1rem; cursor:pointer; border-bottom:1px solid var(--border);
             transition:background 0.1s; outline:none;
         }
         .dropdown-item:last-child { border-bottom:none; }
         .dropdown-item:hover, .dropdown-item:focus { background:var(--primary-light); }
         .di-left  { display:flex; flex-direction:column; gap:2px; }
-        .di-nr    { font-size:1rem; font-weight:700; color:var(--primary-dark); font-family:monospace; }
-        .di-name  { font-size:0.8rem; color:var(--text-muted); }
+        .di-nr    { font-size:0.95rem; font-weight:700; color:var(--primary-dark); font-family:monospace; }
+        .di-name  { font-size:0.78rem; color:var(--text-muted); }
         .di-right { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
-        .di-typ   { font-size:0.72rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; }
-        .di-status{ font-size:0.78rem; font-weight:700; }
+        .di-typ   { font-size:0.7rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; }
+        .di-status{ font-size:0.76rem; font-weight:700; }
+
+        /* Kassen-Layout */
+        .kasse-layout { display:grid; grid-template-columns:1fr 380px; gap:1.5rem; align-items:start; }
+
+        /* Warenkorb */
+        .warenkorb {
+            background:#fff; border-radius:var(--radius); box-shadow:var(--shadow);
+            display:flex; flex-direction:column; height:fit-content; position:sticky; top:1.5rem;
+        }
+        .warenkorb-header {
+            padding:1rem 1.25rem; border-bottom:1.5px solid var(--border);
+            font-weight:700; color:var(--primary-dark); font-size:0.95rem;
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .warenkorb-items { flex:1; overflow-y:auto; max-height:420px; }
+        .warenkorb-empty {
+            padding:2.5rem 1rem; text-align:center;
+            color:var(--text-muted); font-size:0.875rem;
+        }
+        .warenkorb-item {
+            padding:0.85rem 1.25rem; border-bottom:1px solid var(--border);
+            display:flex; align-items:flex-start; gap:0.75rem;
+        }
+        .warenkorb-item:last-child { border-bottom:none; }
+        .wi-info { flex:1; min-width:0; }
+        .wi-nr   { font-family:monospace; font-weight:700; font-size:0.9rem; color:var(--primary-dark); }
+        .wi-meta { font-size:0.76rem; color:var(--text-muted); margin-top:2px; }
+        .wi-preis{ font-weight:700; font-size:0.9rem; white-space:nowrap; color:var(--text); }
+        .wi-remove {
+            background:none; border:none; cursor:pointer; color:#ccc;
+            font-size:1rem; padding:0.1rem 0.3rem; border-radius:4px;
+            transition:color 0.15s, background 0.15s; line-height:1;
+        }
+        .wi-remove:hover { color:#e05252; background:#fde8e8; }
+
+        /* Verzehr pro Item */
+        .wi-verzehr {
+            display:flex; align-items:center; gap:0.4rem;
+            font-size:0.75rem; color:#9a6800; margin-top:4px; cursor:pointer;
+        }
+        .wi-verzehr input { accent-color:var(--accent); cursor:pointer; }
+
+        .warenkorb-footer {
+            padding:1rem 1.25rem; border-top:1.5px solid var(--border);
+        }
+        .wf-summe {
+            display:flex; justify-content:space-between; align-items:center;
+            font-size:0.85rem; color:var(--text-muted); margin-bottom:0.4rem;
+        }
+        .wf-gesamt {
+            display:flex; justify-content:space-between; align-items:center;
+            font-weight:800; font-size:1.1rem; color:var(--primary-dark);
+            margin-bottom:1rem;
+        }
+        .wf-gesamt span:last-child { font-size:1.4rem; }
     </style>
 </head>
 <body>
@@ -32,102 +88,89 @@
     <main class="pm-main">
         <div class="pm-page-header">
             <h1 class="pm-page-title">💰 Kasse</h1>
-            <button class="btn btn-warning" onclick="abendkasse()">🎟️ + Abendkasse</button>
+            <button class="btn btn-warning" onclick="abendkasse()">🌙 + Abendkasse</button>
         </div>
 
-        <!-- Suche -->
-        <div class="pm-card mb-3" style="padding:1.5rem;">
-            <div class="pm-label">Ticket suchen</div>
-            <div class="search-autocomplete-wrap">
-                <div class="input-group">
-                    <input id="ticket-search" class="pm-input" type="text"
-                           placeholder="Ticketnummer (1, 001) oder Name…" autocomplete="off">
-                    <button class="btn btn-primary" onclick="searchTicket()">Suchen</button>
-                </div>
-                <div id="search-dropdown"></div>
-            </div>
-            <div class="text-small text-muted mt-1">Tippe eine Zahl oder einen Namen – Vorschläge erscheinen automatisch</div>
-        </div>
-
-        <!-- Mehrere Treffer -->
-        <div id="search-results" style="display:none;" class="pm-card mb-3">
-            <div class="pm-card-header">Suchergebnisse</div>
-            <table class="pm-table">
-                <thead><tr><th>Nr.</th><th>Person</th><th>Typ</th><th>Preis</th><th>Status</th><th></th></tr></thead>
-                <tbody id="results-body"></tbody>
-            </table>
-        </div>
-
-        <!-- Ticket Details -->
-        <div id="ticket-box" style="display:none;">
-            <div class="columns">
-                <div class="col-6">
-                    <div class="pm-card" style="padding:1.5rem;">
-                        <div class="flex-between mb-2">
-                            <span style="font-weight:700;color:var(--primary-dark);">🎟️ Ticket-Details</span>
-                            <button class="btn btn-light btn-sm" onclick="resetKasse()">✕</button>
+        <div class="kasse-layout">
+            <!-- Linke Seite: Suche -->
+            <div>
+                <!-- Ticket-Suche -->
+                <div class="pm-card mb-3" style="padding:1.25rem 1.5rem;">
+                    <div class="pm-label mb-1">🎟️ Ticket hinzufügen</div>
+                    <div class="search-autocomplete-wrap">
+                        <div class="input-group">
+                            <input id="ticket-search" class="pm-input" type="text"
+                                   placeholder="Ticketnummer (1, 001) …" autocomplete="off">
+                            <button class="btn btn-primary" onclick="addBySearch()">Hinzufügen</button>
                         </div>
-
-                        <!-- Hinweis: was passiert -->
-                        <div id="kasse-hinweis" style="display:none;" class="mb-2"></div>
-
-                        <div class="kasse-ticket-info">
-                            <table>
-                                <tr><th>Ticket-Nr.</th><td id="d-nr"></td></tr>
-                                <tr><th>Typ</th>       <td id="d-typ"></td></tr>
-                                <tr><th>Person</th>    <td id="d-person"></td></tr>
-                                <tr><th>Preis</th>     <td id="d-preis"></td></tr>
-                                <tr><th>Status</th>    <td id="d-status"></td></tr>
-                            </table>
-                        </div>
-
-                        <!-- Verzehr (nur bei Reservierungen) -->
-                        <div id="verzehr-section" style="display:none;" class="mb-2">
-                            <label class="verzehr-toggle">
-                                <input type="checkbox" id="kasse-verzehr" onchange="updateGesamt()">
-                                🍽️ Verzehrgebühr hinzufügen
-                                <span id="verzehr-preis-label" style="margin-left:auto;font-weight:700;"></span>
-                            </label>
-                        </div>
-
-                        <!-- Zahlungsart (nur bei Reservierungen) -->
-                        <div id="zahlungsart-wrap" class="pm-field" style="display:none;">
-                            <label class="pm-label">Zahlungsart</label>
-                            <select id="zahlungsart-select" class="pm-select" style="max-width:200px;">
-                                <option value="BAR">💵 Bar</option>
-                                <option value="KARTE">💳 Karte</option>
-                                <option value="PAYPAL">🅿️ PayPal</option>
-                                <option value="UEBERWEISUNG">🏦 Überweisung</option>
-                            </select>
-                        </div>
-
-                        <!-- Gesamtbetrag (nur bei Reservierungen) -->
-                        <div id="gesamt-wrap" class="kasse-total" style="display:none;">
-                            <span>Zu kassieren</span>
-                            <span class="total-amount" id="gesamt-betrag">0,00 €</span>
-                        </div>
-
-                        <button id="pay-btn" class="btn btn-success btn-full btn-lg mt-2" onclick="kassieren()">
-                            💵 Kassieren & Einchecken
-                        </button>
+                        <div id="search-dropdown"></div>
                     </div>
                 </div>
+
+                <!-- Person-Suche: alle Tickets laden -->
+                <div class="pm-card mb-3" style="padding:1.25rem 1.5rem;">
+                    <div class="pm-label mb-1">👥 Person suchen – alle Tickets laden</div>
+                    <div class="search-autocomplete-wrap">
+                        <div class="input-group">
+                            <input id="person-search" class="pm-input" type="text"
+                                   placeholder="Name eingeben …" autocomplete="off">
+                            <button class="btn btn-light" onclick="clearPersonSearch()">✕</button>
+                        </div>
+                        <div id="person-dropdown"></div>
+                    </div>
+                    <div id="person-info" class="text-small text-muted mt-1"></div>
+                </div>
+
+                <!-- Zahlungsart (global für alle Items) -->
+                <div class="pm-card" style="padding:1.25rem 1.5rem;">
+                    <div class="pm-label mb-1">Zahlungsart</div>
+                    <select id="zahlungsart-select" class="pm-select" style="max-width:200px;">
+                        <option value="BAR">💵 Bar</option>
+                        <option value="KARTE">💳 Karte</option>
+                        <option value="PAYPAL">🅿️ PayPal</option>
+                        <option value="UEBERWEISUNG">🏦 Überweisung</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Rechte Seite: Warenkorb -->
+            <div class="warenkorb">
+                <div class="warenkorb-header">
+                    <span>🛒 Warenkorb</span>
+                    <button class="btn btn-light btn-sm" onclick="clearWarenkorb()" id="clear-btn" style="display:none;">
+                        Leeren
+                    </button>
+                </div>
+
+                <div class="warenkorb-items" id="warenkorb-items">
+                    <div class="warenkorb-empty">Noch keine Tickets hinzugefügt</div>
+                </div>
+
+                <div class="warenkorb-footer">
+                    <div class="wf-summe">
+                        <span>Tickets</span><span id="wf-tickets">0,00 €</span>
+                    </div>
+                    <div class="wf-summe" id="wf-verzehr-row" style="display:none;">
+                        <span>🍽️ Verzehr</span><span id="wf-verzehr">0,00 €</span>
+                    </div>
+                    <div class="wf-gesamt">
+                        <span>Gesamt</span><span id="wf-gesamt">0,00 €</span>
+                    </div>
+                    <button id="kassieren-btn" class="btn btn-success btn-full btn-lg"
+                            onclick="kassiereWarenkorb()" disabled>
+                        ✓ Kassieren & Einchecken
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Status-Meldungen -->
-        <div id="already-checked" style="display:none;" class="pm-alert pm-alert-info">
-            ✓ Diese Person wurde bereits eingecheckt.
-        </div>
-        <div id="is-storniert" style="display:none;" class="pm-alert pm-alert-error">
-            ✕ Dieses Ticket wurde storniert.
-        </div>
-        <div id="success-box" style="display:none;" class="pm-alert pm-alert-success">
+        <!-- Erfolg -->
+        <div id="success-box" style="display:none;" class="pm-alert pm-alert-success mt-2">
             <div>
-                <strong>✓ Ticket <span id="success-nr"></span> abgeschlossen!</strong><br>
+                <strong>✓ Abgeschlossen!</strong>
                 <span id="success-msg"></span>
-                <button class="btn btn-light btn-sm mt-1" onclick="resetKasse()" style="margin-left:1rem;">
-                    Nächstes Ticket
+                <button class="btn btn-light btn-sm" onclick="resetKasse()" style="margin-left:1rem;">
+                    Nächster Vorgang
                 </button>
             </div>
         </div>
