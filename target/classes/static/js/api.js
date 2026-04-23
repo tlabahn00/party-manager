@@ -61,6 +61,6 @@ function statusBadge(s) {
     return `<span class="badge badge-${m[s]||'light'}">${s}</span>`;
 }
 function typBadge(t) {
-    const m = { STANDARD:'info', VIP:'purple', ERMAESSIGT:'success' };
+    const m = { STANDARD:'info', ABENDKASSE:'purple', MITGLIED:'success' };
     return `<span class="badge badge-${m[t]||'light'}">${t}</span>`;
 }

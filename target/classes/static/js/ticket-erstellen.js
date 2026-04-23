@@ -39,7 +39,7 @@ function toggleZahlungsart() {
 function updatePreis() {
     if (!cfg) return;
     const typ  = document.getElementById('ticket-typ').value;
-    const map  = { STANDARD: cfg.preisStandard, VIP: cfg.preisVip, ERMAESSIGT: cfg.preisErmaessigt };
+    const map  = { STANDARD: cfg.preisStandard, ABENDKASSE: cfg.preisAbendkasse, MITGLIED: cfg.preisMitglied };
     const basis = parseFloat(map[typ] || 0);
     const mitV  = document.getElementById('verzehr-checkbox')?.checked && cfg.verzehrEnabled;
     document.getElementById('preis-display').value = formatEuro(basis);

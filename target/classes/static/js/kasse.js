@@ -229,6 +229,30 @@ function hideAll() {
         .forEach(id => document.getElementById(id).style.display='none');
 }
 
+async function abendkasse() {
+    if (!confirm('Abendkasse: ABENDKASSE-Ticket ohne Person anlegen und direkt zur Kasse?')) return;
+    try {
+        const ticket = await apiFetch('/api/tickets', {
+            method: 'POST',
+            body: JSON.stringify({
+                ticketTyp:      'ABENDKASSE',
+                personId:       null,
+                verzehr:        false,
+                zahlungsstatus: 'RESERVIERT',
+                zahlungsart:    null
+            })
+        });
+        // Neu geladenes Ticket in lokale Liste aufnehmen
+        allTickets.push(ticket);
+        // Direkt in der Kasse anzeigen
+        document.getElementById('ticket-search').value = ticket.ticketNummer;
+        showTicket(ticket);
+        showToast('Abendkasse: Ticket ' + ticket.ticketNummer + ' angelegt.', 'success');
+    } catch(e) {
+        showToast('Fehler beim Anlegen: ' + e.message, 'error');
+    }
+}
+
 function resetKasse() {
     hideAll();
     currentTicket = null;

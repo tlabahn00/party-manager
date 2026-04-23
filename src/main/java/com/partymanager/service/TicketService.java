@@ -18,8 +18,8 @@ public class TicketService {
     @Autowired private PersonRepository  personRepository;
 
     @Value("${ticket.preis.standard}")  private BigDecimal preisStandard;
-    @Value("${ticket.preis.vip}")       private BigDecimal preisVip;
-    @Value("${ticket.preis.ermaessigt}")private BigDecimal preisErmaessigt;
+    @Value("${ticket.preis.abendkasse}")       private BigDecimal preisAbendkasse;
+    @Value("${ticket.preis.mitglied}")private BigDecimal preisMitglied;
     @Value("${kasse.verzehr.preis}")    private BigDecimal verzehrPreis;
 
     public List<Ticket> findAll() { return ticketRepository.findAll(); }
@@ -134,8 +134,8 @@ public class TicketService {
 
     private BigDecimal preisForTyp(String typ) {
         return switch (typ.toUpperCase()) {
-            case "VIP"        -> preisVip;
-            case "ERMAESSIGT" -> preisErmaessigt;
+            case "ABENDKASSE"        -> preisAbendkasse;
+            case "MITGLIED" -> preisMitglied;
             default           -> preisStandard;
         };
     }

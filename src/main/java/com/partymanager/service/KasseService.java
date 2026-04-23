@@ -24,8 +24,8 @@ public class KasseService {
     @Value("${kasse.verzehr.enabled}")    private boolean    verzehrEnabled;
     @Value("${kasse.verzehr.preis}")      private BigDecimal verzehrPreis;
     @Value("${ticket.preis.standard}")    private BigDecimal preisStandard;
-    @Value("${ticket.preis.vip}")         private BigDecimal preisVip;
-    @Value("${ticket.preis.ermaessigt}")  private BigDecimal preisErmaessigt;
+    @Value("${ticket.preis.abendkasse}")         private BigDecimal preisAbendkasse;
+    @Value("${ticket.preis.mitglied}")  private BigDecimal preisMitglied;
     @Value("${veranstaltung.max-teilnehmer}") private int    maxTeilnehmer;
 
     /**
@@ -89,8 +89,8 @@ public class KasseService {
         c.put("verzehrEnabled",  verzehrEnabled);
         c.put("verzehrPreis",    verzehrPreis);
         c.put("preisStandard",   preisStandard);
-        c.put("preisVip",        preisVip);
-        c.put("preisErmaessigt", preisErmaessigt);
+        c.put("preisAbendkasse",        preisAbendkasse);
+        c.put("preisMitglied", preisMitglied);
         c.put("maxTeilnehmer",   maxTeilnehmer);
         return c;
     }
