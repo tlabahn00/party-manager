@@ -224,8 +224,8 @@ function renderWarenkorb() {
         const person = ticket.person
             ? ticket.person.vorname+' '+ticket.person.nachname : '–';
         const istReserviert = ticket.zahlungsstatus === 'RESERVIERT';
-        const vp = cfg?.verzehrEnabled && verzehr ? parseFloat(cfg.verzehrPreis) : 0;
-        const itemPreis = parseFloat(ticket.preis) + vp;
+        const vp = cfg?.verzehrEnabled && verzehr && istReserviert ? parseFloat(cfg.verzehrPreis) : 0;
+        const itemPreis = istReserviert ? parseFloat(ticket.preis) + vp : 0;
 
         return `<div class="warenkorb-item">
             <div class="wi-info">
@@ -244,7 +244,7 @@ function renderWarenkorb() {
                 </label>` : ''}
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-                <span class="wi-preis">${formatEuro(itemPreis)}</span>
+                <span class="wi-preis">${istReserviert ? formatEuro(itemPreis) : '<span style="font-size:0.75rem;color:#1a7a44;font-weight:600;">✓ Nur Eincheck</span>'}</span>
                 <button class="wi-remove" onclick="removeFromWarenkorb(${ticket.id})" title="Entfernen">✕</button>
             </div>
         </div>`;
@@ -254,13 +254,17 @@ function renderWarenkorb() {
 }
 
 function updateSummen() {
-    let tickets = 0, verzehr = 0;
+    let zuKassieren = 0, verzehr = 0;
     warenkorb.forEach(({ticket, verzehr: mitV}) => {
-        tickets += parseFloat(ticket.preis);
-        if (mitV && cfg?.verzehrEnabled) verzehr += parseFloat(cfg.verzehrPreis);
+        const istReserviert = ticket.zahlungsstatus === 'RESERVIERT';
+        if (istReserviert) {
+            zuKassieren += parseFloat(ticket.preis);
+            if (mitV && cfg?.verzehrEnabled) verzehr += parseFloat(cfg.verzehrPreis);
+        }
     });
-    document.getElementById('wf-tickets').textContent = formatEuro(tickets);
-    document.getElementById('wf-gesamt').textContent  = formatEuro(tickets + verzehr);
+
+    document.getElementById('wf-tickets').textContent = formatEuro(zuKassieren);
+    document.getElementById('wf-gesamt').textContent  = formatEuro(zuKassieren + verzehr);
 
     const vr = document.getElementById('wf-verzehr-row');
     if (verzehr > 0) {
@@ -269,6 +273,10 @@ function updateSummen() {
     } else {
         vr.style.display = 'none';
     }
+
+    // Alte Vorab-Zeile entfernen falls vorhanden
+    const paidRow = document.getElementById('wf-paid-row');
+    if (paidRow) paidRow.remove();
 }
 
 /* ─── Kassieren ─── */

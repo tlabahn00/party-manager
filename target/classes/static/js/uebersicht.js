@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('s-gesamt').textContent    = stats.ticketsGesamt   ?? 0;
         document.getElementById('s-bezahlt').textContent   = stats.ticketsBezahlt  ?? 0;
-        document.getElementById('s-offen').textContent     = stats.ticketsOffen    ?? 0;
+        document.getElementById('s-offen').textContent     = stats.ticketsReserviert ?? 0;
         document.getElementById('s-storniert').textContent = stats.ticketsStorniert ?? 0;
         document.getElementById('s-einnahmen').textContent = formatEuro(stats.gesamtEinnahmen);
         document.getElementById('s-frei').textContent      = stats.freiePlaetze    ?? 0;
