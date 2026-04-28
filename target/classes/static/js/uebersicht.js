@@ -6,12 +6,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             apiFetch('/api/kasse/vorgaenge')
         ]);
 
-        document.getElementById('s-gesamt').textContent    = stats.ticketsGesamt   ?? 0;
-        document.getElementById('s-bezahlt').textContent   = stats.ticketsBezahlt  ?? 0;
-        document.getElementById('s-offen').textContent     = stats.ticketsReserviert ?? 0;
-        document.getElementById('s-storniert').textContent = stats.ticketsStorniert ?? 0;
-        document.getElementById('s-einnahmen').textContent = formatEuro(stats.gesamtEinnahmen);
-        document.getElementById('s-frei').textContent      = stats.freiePlaetze    ?? 0;
+        document.getElementById('s-einnahmen-gesamt').textContent = formatEuro(stats.einnahmenGesamt);
+        document.getElementById('s-einnahmen-bar').textContent    = formatEuro(stats.einnahmenBar);
+        document.getElementById('s-bezahlt').textContent          = stats.ticketsBezahlt   ?? 0;
+        document.getElementById('s-offen').textContent            = stats.ticketsReserviert ?? 0;
+        document.getElementById('s-storniert').textContent        = stats.ticketsStorniert  ?? 0;
+        document.getElementById('s-frei').textContent             = stats.freiePlaetze      ?? 0;
 
         // Kapazitätsbalken
         const max     = stats.maxTeilnehmer || 0;

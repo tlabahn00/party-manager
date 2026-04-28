@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,9 @@ import java.util.Optional;
 public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     Optional<Ticket> findByTicketNummer(String ticketNummer);
+
+    @Query("SELECT t FROM Ticket t LEFT JOIN FETCH t.person ORDER BY t.ticketNummer ASC")
+    List<Ticket> findAllSorted();
 
     List<Ticket> findByZahlungsstatus(String zahlungsstatus);
 
@@ -23,6 +27,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.eingecheckt = true")
     long countEingecheckt();
+
+    @Query("SELECT COALESCE(SUM(t.preis + t.verzehrPreis), 0) FROM Ticket t WHERE t.zahlungsstatus = 'BEZAHLT' AND t.zahlungsart IS NOT NULL AND t.zahlungsart != 'BAR'")
+    BigDecimal sumVorabBezahlt();
 
     @Query("SELECT t FROM Ticket t LEFT JOIN t.person p WHERE " +
             "t.ticketNummer LIKE CONCAT('%', :q, '%') OR " +

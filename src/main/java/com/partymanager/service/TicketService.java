@@ -22,7 +22,7 @@ public class TicketService {
     @Value("${ticket.preis.mitglied}")private BigDecimal preisMitglied;
     @Value("${kasse.verzehr.preis}")    private BigDecimal verzehrPreis;
 
-    public List<Ticket> findAll() { return ticketRepository.findAll(); }
+    public List<Ticket> findAll() { return ticketRepository.findAllSorted(); }
 
     public Ticket findById(Long id) {
         return ticketRepository.findById(id)

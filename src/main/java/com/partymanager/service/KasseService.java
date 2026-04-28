@@ -67,20 +67,29 @@ public class KasseService {
     public List<Kassenvorgang> findAllVorgaenge() { return kassenvorgangRepository.findAll(); }
 
     public Map<String, Object> getStatistik() {
-        long bezahlt   = ticketRepository.countByZahlungsstatus("BEZAHLT");
-        long reserviert= ticketRepository.countByZahlungsstatus("RESERVIERT");
-        long storniert = ticketRepository.countByZahlungsstatus("STORNIERT");
+        long bezahlt    = ticketRepository.countByZahlungsstatus("BEZAHLT");
+        long reserviert = ticketRepository.countByZahlungsstatus("RESERVIERT");
+        long storniert  = ticketRepository.countByZahlungsstatus("STORNIERT");
         long eingecheckt = ticketRepository.countEingecheckt();
 
+        // Kasseneinnahmen (nur Reserviert→Bezahlt Vorgänge an der Kasse)
+        BigDecimal einnahmenKasse = kassenvorgangRepository.sumGesamtbetrag();
+        BigDecimal einnahmenBar   = kassenvorgangRepository.sumByZahlungsart("BAR");
+
+        // Gesamteinnahmen = Kasseneinnahmen + vorab bezahlte Tickets (keine Kassenvorgänge)
+        BigDecimal vorabBezahlt   = ticketRepository.sumVorabBezahlt();
+        BigDecimal einnahmenGesamt = einnahmenKasse.add(vorabBezahlt != null ? vorabBezahlt : BigDecimal.ZERO);
+
         Map<String, Object> s = new HashMap<>();
-        s.put("gesamtEinnahmen",  kassenvorgangRepository.sumGesamtbetrag());
-        s.put("ticketsGesamt",    ticketRepository.count());
-        s.put("ticketsBezahlt",   bezahlt);
-        s.put("ticketsReserviert",reserviert);
-        s.put("ticketsStorniert", storniert);
+        s.put("einnahmenGesamt",    einnahmenGesamt);
+        s.put("einnahmenBar",       einnahmenBar != null ? einnahmenBar : BigDecimal.ZERO);
+        s.put("ticketsGesamt",      ticketRepository.count());
+        s.put("ticketsBezahlt",     bezahlt);
+        s.put("ticketsReserviert",  reserviert);
+        s.put("ticketsStorniert",   storniert);
         s.put("ticketsEingecheckt", eingecheckt);
-        s.put("maxTeilnehmer",    maxTeilnehmer);
-        s.put("freiePlaetze",     Math.max(0, maxTeilnehmer - eingecheckt));
+        s.put("maxTeilnehmer",      maxTeilnehmer);
+        s.put("freiePlaetze",       Math.max(0, maxTeilnehmer - eingecheckt));
         return s;
     }
 
@@ -90,7 +99,7 @@ public class KasseService {
         c.put("verzehrPreis",    verzehrPreis);
         c.put("preisStandard",   preisStandard);
         c.put("preisAbendkasse",        preisAbendkasse);
-        c.put("preisMitglied", preisMitglied);
+        c.put("preisMitglied", preisStandard);
         c.put("maxTeilnehmer",   maxTeilnehmer);
         return c;
     }

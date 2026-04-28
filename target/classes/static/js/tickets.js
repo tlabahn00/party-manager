@@ -15,12 +15,13 @@ async function loadTickets() {
 function filterTickets() {
     const q = document.getElementById('search-input').value.toLowerCase();
     const s = document.getElementById('status-filter').value;
-    let f = allTickets;
+    let f = [...allTickets];
     if (s) f = f.filter(t => t.zahlungsstatus === s);
     if (q) f = f.filter(t =>
         t.ticketNummer.toLowerCase().includes(q) ||
         (t.person && (t.person.vorname+' '+t.person.nachname).toLowerCase().includes(q))
     );
+    f.sort((a, b) => a.ticketNummer.localeCompare(b.ticketNummer));
     renderTickets(f);
 }
 
